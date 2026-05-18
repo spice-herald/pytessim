@@ -1,0 +1,91 @@
+
+filter_file: /home/wmatava/HeST_testing/wf_gen_pipeline/CSD_filterfile.hdf5
+LEE_PDF_file: /home/wmatava/HeST_testing/wf_gen_pipeline/LEE_PDF.pkl
+
+# -------------------------------------------------
+# Noise Generation
+# -------------------------------------------------
+noise:
+    channel_00|channel_01:
+        csd_tag: default
+    
+# -------------------------------------------------
+# SALTING PROCESSING
+# -------------------------------------------------
+salting:
+    channel_00,channel_01:
+        template_tag: LEE_single
+        collection_efficiency: [1.0]
+        pdf_tag: LEE_single
+        pdf_bounds: [0.0,20.0]
+        rate: 1.23
+        
+    channel_00|channel_01:
+        template_tag: LEE_shared
+        collection_efficiency: [1.0,1.0]
+        pdf_tag: LEE_shared
+        pdf_bounds: [0.0,20.0]
+        rate: 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # channel_00,channel_01,channel_02,channel_03,channel_04,channel_05,channel_06,channel_07:
+    #     template_tag: LEE_single
+    #     noise_tag: default     
+    #     collection_efficiency: [0.3]
+    #     dpdi_tag: default
+    #     dpdi_poles: 3
+    #     pdf_tag: 'single'
+    #     rate: 1 
+    # channel_08,channel_09,channel_10,channel_11,channel_12,channel_13,channel_14,channel_15:
+    #     template_tag: LEE_single
+    #     noise_tag: default     
+    #     collection_efficiency: [0.3]
+    #     dpdi_tag: default
+    #     dpdi_poles: 3 
+    #     pdf_tag: 'single'
+    #     rate: 1 
+    # channel_16,channel_17,channel_18,channel_19,channel_20,channel_21,channel_22,channel_23:
+    #    template_tag: LEE_single
+    #    noise_tag: default     
+    #    collection_efficiency: [0.3]
+    #    dpdi_tag: default
+    #    dpdi_poles: 3  
+    #    pdf_tag: 'single'
+    #    rate: 1
+
+    # channel_00|channel_01,channel_02|channel_03,channel_04|channel_05,channel_06|channel_07:
+    #    template_tag: LEE_shared
+    #    noise_tag: default     
+    #    collection_efficiency: [0.3,0.3]
+    #    dpdi_tag: default
+    #    dpdi_poles: 3
+    #    pdf_tag: 'shared'
+    #    rate: 1   
+    # channel_08|channel_09,channel_10|channel_11,channel_12|channel_13,channel_14|channel_15:
+    #    template_tag: LEE_shared
+    #    noise_tag: default     
+    #    collection_efficiency: [0.3,0.3]
+    #    dpdi_tag: default
+    #    dpdi_poles: 3  
+    #    pdf_tag: 'shared'
+    #    rate: 1
+    # channel_16|channel_17,channel_18|channel_19,channel_20|channel_21,channel_22|channel_23:
+    #    template_tag: LEE_shared
+    #    noise_tag: default     
+    #    collection_efficiency: [0.3,0.3]
+    #    dpdi_tag: default
+    #    dpdi_poles: 3    
+    #    pdf_tag: 'shared'
+    #    rate: 1      
