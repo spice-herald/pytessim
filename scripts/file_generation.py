@@ -1,6 +1,8 @@
 import numpy as np
 import argparse
 from detprocess import YamlConfig, Salting, RawData
+from pytessim.utils import YamlTopConfig
+from pytessim import Background_Manager
 from utils import string_to_time, time_to_string, gen_metadata
 import datetime as dt
 from qetpy.utils import convert_channel_name_to_list,convert_channel_list_to_name
@@ -36,6 +38,10 @@ if __name__ == '__main__':
                         dest = 'enable_LEE', action='store_true',
                         help='Whether to add simulated LEE to the data. Default no')
     
+    parser.add_argument('--enable-background', '--enable_background',
+                        dest = 'enable_background', action='store_true',
+                        help='Whether to add simulated LEE to the data. Default no')
+    
     parser.add_argument('--filesize-lim-GB', '--filesize_lim_GB',
                         dest='filesize_lim_GB', type = float, required = False,
                         help='Limit of a given file size in GB')
@@ -49,6 +55,10 @@ if __name__ == '__main__':
     parser.add_argument('--processing-setup', '--processing_setup',
                         dest = 'processing_setup',type=str, required = True,
                         help='Processing setup (yaml) file path')  
+    
+    parser.add_argument('--topology-setup', '--topology_setup',
+                        dest = 'processing_setup', type='str', requred = False,
+                        help='Topology setup (yaml) file path')
     
     parser.add_argument('--template-file', '--template_file',
                         dest = 'template_file',type=str, required = True,
@@ -71,10 +81,14 @@ if __name__ == '__main__':
 
     enable_noise = False
     enable_LEE = False
+    enable_background = False
+
     if args.enable_LEE:
         enable_LEE = True
     if args.enable_noise:
         enable_noise = True
+    if args.enable_background:
+        enable_background = True
 
     if not enable_LEE and not enable_noise:
         raise ValueError('Generating neither noise nor LEE. At least one action is required')
@@ -121,6 +135,14 @@ if __name__ == '__main__':
         comment = args.comment
 
     processing_file_path = args.processing_setup
+
+    if (args.topology_setup is None) != (not enable_background ):
+        raise ValueError('Must include topology setup file if you want to simulate bakcgrounds')
+    
+    elif enable_background:
+        topology_file_path = args.topology_setup
+
+
     template_file_path = args.template_file
     channel_list = []
     for i in range(n_channels):
@@ -160,14 +182,13 @@ if __name__ == '__main__':
             noise_factory.initialize_factory(chan)
 
 
-
     ##############################
     # Writing Files/Adding Noise #
     ##############################
     print('# of events per series: ' + str(n_events_per_series))
 
     #Increment 1 second to emulate the setup delay for data-taking
-    #just ensuring that the data folder doesn't contain the first series string
+    #really just ensuring that the data folder doesn't contain the first series string
     start_time = string_to_time(date_time_string) + dt.timedelta(seconds = 1)
     start_epoch = start_time.timestamp()
 
@@ -264,7 +285,7 @@ if __name__ == '__main__':
 
         LEE_config = config.get_config('salting')
 
-        LEE_factory = Salting(template_file_path) #add dIdV file ZZZ?
+        LEE_factory = Salting(template_file_path) 
 
         rawdata_obj = RawData(save_path,
                               data_type='cont')
@@ -396,6 +417,48 @@ if __name__ == '__main__':
             file_editor.set_this_event(new_traces, detector_chans = channel_list)
         file_editor.close()
     #################
+
+
+    ###################################
+    # Adding Backgrounds to Data 
+    ###################################
+
+    if enable_background:
+
+        #Perform all pre-calculations; generate salting dataframes
+        BG_Manager = Background_Manager(topology_file_path,
+                                        event_length_sec,
+                                        series_length_sec,
+                                        time_sec,
+                                        1.25e6)
+
+        BG_Manager.save_hdf5()
+
+        file_editor = H5Reader(edit_mode=True) 
+        file_editor.set_files(save_path)
+
+        while True:
+            old_traces, metadata = file_editor.read_next_event(include_metadata=True,adctoamp=True)
+            if metadata['error_msg'] == 'No more files available':
+                break
+
+            #Use salting object to inject relevant salting events 
+            new_traces = BG_Manager.inject_raw_salt(channel_list, old_traces, metadata['series_num'], metadata['event_num'])
+
+            #Need to build this ZZZ
+            new_traces = BG_Manager.inject_simulated_waveforms('')
+
+            #Convert to ADC with hard-coded values stored in the metadata
+            new_traces *= 1e6 #Convert from TES current to SQUID voltage (close loop norm currently hard-coded)
+            new_traces /= 10 #Convert to [-.5,+.5]
+            new_traces *= 2**16
+            
+            #Convert to int16 (true to the actual saved format)
+            #Clip to circumvent integer overflow
+            new_traces = np.clip(new_traces, -32768, 32767).astype(np.int16)
+            file_editor.set_this_event(new_traces, detector_chans = channel_list)
+        file_editor.close()     
+
 
 
 
