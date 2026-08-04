@@ -55,7 +55,7 @@ class Background_Factory():
                 template_tag = item['template_tag']
                 templates, time_array, metadata = self._filter_data.get_template(item['channel_name'], tag = template_tag, return_metadata = True)  
 
-                pretrig_samps = metadata['']  
+                # pretrig_samps = metadata['']  
                 collection_efficiencies = item['collection_efficiency']  
 
                 channels = convert_channel_name_to_list(channel_name)

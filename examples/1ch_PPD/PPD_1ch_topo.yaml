@@ -1,0 +1,16 @@
+
+filter_file: /home/wmatava/pytessim_dev/testing_july_2026/1channel_ppd.hdf5
+background_file: /home/wmatava/pytessim_dev/test/Copper_Co57_germanium_reduced.root
+
+topology:
+
+# 8x GaAs target modules 
+    target1:
+        target_type: PPD_1ch
+        G4ID: 17
+        channel:
+            channel_name: channel_00
+            template_tag: shared
+            dpdi_tag: default
+            dpdi_npoles : 3           
+            collection_efficiency : [.3]

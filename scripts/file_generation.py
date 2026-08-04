@@ -1,9 +1,9 @@
 import numpy as np
 import argparse
 from detprocess import YamlConfig, Salting, RawData
-from pytessim.utils import YamlTopConfig
+from pytessim.utils import YamlTopConfig, string_to_time, time_to_string, gen_metadata
+import datetime as dt
 from pytessim import Background_Manager
-from utils import string_to_time, time_to_string, gen_metadata
 import datetime as dt
 from qetpy.utils import convert_channel_name_to_list,convert_channel_list_to_name
 from detprocess.utils import create_series_name
@@ -57,7 +57,7 @@ if __name__ == '__main__':
                         help='Processing setup (yaml) file path')  
     
     parser.add_argument('--topology-setup', '--topology_setup',
-                        dest = 'processing_setup', type='str', requred = False,
+                        dest = 'topology_setup', type=str, required = False,
                         help='Topology setup (yaml) file path')
     
     parser.add_argument('--template-file', '--template_file',
@@ -136,7 +136,7 @@ if __name__ == '__main__':
 
     processing_file_path = args.processing_setup
 
-    if (args.topology_setup is None) != (not enable_background ):
+    if (args.topology_setup is None) and enable_background:
         raise ValueError('Must include topology setup file if you want to simulate bakcgrounds')
     
     elif enable_background:
@@ -312,22 +312,28 @@ if __name__ == '__main__':
 
         chan_dataframe_list = []
         salting_dataframe_list = []
-        for chan, chan_config in LEE_config['channels'].items():
+        for salt, salt_config in LEE_config['channels'].items():
 
-            print(f'INFO: Generating LEE for channel {chan}')
+            print(f'INFO: Generating LEE for {salt}')
+
+
+            template_tag = salt_config['template_tag']
+            pdf_tag = salt_config['pdf_tag']
+            pdf_bounds = salt_config['pdf_bounds']
+            rate = salt_config['rate']
+            dpdi_poles = None
+            dpdi_tag = None
+            if 'dpdi_tag' in salt_config:
+                dpdi_tag = salt_config['dpdi_tag']
+            if 'dpdi_poles' in salt_config:
+                dpdi_poles = salt_config['dpdi_poles']
+            if 'channel' in salt_config:
+                chan = salt_config['channel']
+            else:
+                chan = salt
 
             chan_list = convert_channel_name_to_list(chan)
 
-            template_tag = chan_config['template_tag']
-            pdf_tag = chan_config['pdf_tag']
-            pdf_bounds = chan_config['pdf_bounds']
-            rate = chan_config['rate']
-            dpdi_poles = None
-            dpdi_tag = None
-            if 'dpdi_tag' in chan_config:
-                dpdi_tag = chan_config['dpdi_tag']
-            if 'dpdi_poles' in chan_config:
-                dpdi_poles = chan_config['dpdi_poles']
 
 
             if (dpdi_tag is None) != (dpdi_poles is None): 
@@ -342,8 +348,8 @@ if __name__ == '__main__':
                         ' Template amplitude is assumed to be 1!')
                 
             pce = 1
-            if 'collection_efficiency' in chan_config:
-                pce = chan_config['collection_efficiency']
+            if 'collection_efficiency' in salt_config:
+                pce = salt_config['collection_efficiency']
             elif len(chan_list) >=2:
                 pce = [pce]*len(chan_list)
          
@@ -393,6 +399,7 @@ if __name__ == '__main__':
     # Adding LEE to file #
     ######################
     if enable_LEE:
+        print('INFO: Adding LEE to the generated data files')
         LEE_factory = Salting(template_file_path)
         LEE_factory.set_dataframe(salting_dataframe_list)
         file_editor = H5Reader(edit_mode=True) 
@@ -405,7 +412,6 @@ if __name__ == '__main__':
 
             #Use salting object to inject relevant salting events 
             new_traces = LEE_factory.inject_raw_salt(channel_list, old_traces, metadata['series_num'], metadata['event_num'])
-
             #Convert to ADC with hard-coded values stored in the metadata
             new_traces *= 1e6 #Convert from TES current to SQUID voltage (close loop norm currently hard-coded)
             new_traces /= 10 #Convert to [-.5,+.5]
@@ -432,7 +438,7 @@ if __name__ == '__main__':
                                         time_sec,
                                         1.25e6)
 
-        BG_Manager.save_hdf5()
+        # BG_Manager.save_hdf5()
 
         file_editor = H5Reader(edit_mode=True) 
         file_editor.set_files(save_path)
@@ -446,7 +452,7 @@ if __name__ == '__main__':
             new_traces = BG_Manager.inject_raw_salt(channel_list, old_traces, metadata['series_num'], metadata['event_num'])
 
             #Need to build this ZZZ
-            new_traces = BG_Manager.inject_simulated_waveforms('')
+            # new_traces = BG_Manager.inject_simulated_waveforms('')
 
             #Convert to ADC with hard-coded values stored in the metadata
             new_traces *= 1e6 #Convert from TES current to SQUID voltage (close loop norm currently hard-coded)

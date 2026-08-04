@@ -10,7 +10,7 @@ import vaex as vx
 from pytessim.core.backgrounds.PPD_1ch_Factory import PPD_1ch_Factory
 from pytessim.core.backgrounds.PPD_2ch_Factory import PPD_2ch_Factory
 from pytessim.core.backgrounds.GaAs_1ch_Factory import GaAs_1ch_Factory
-from pytessim.core.backgtounds.HeRALD_Modane_Factory.py import HeRALD_Modane_Factory
+from pytessim.core.backgrounds.HeRALD_Modane_Factory import HeRALD_Modane_Factory
 
 class Background_Manager(Salting):
     """
@@ -63,6 +63,9 @@ class Background_Manager(Salting):
 
         self._initialize_background_factories()
 
+        self._initialize_background_df()
+
+        self._read_root_file()
 
 
 
@@ -81,16 +84,18 @@ class Background_Manager(Salting):
         topology_config = self._config.get_config()['topology']['targets']
 
         for target_num, target_dict in topology_config.items():
-            target_type = target_dict.pop('target_type')
+            print(f'target_num : {target_num}')
+            print(f'target_dict : {target_dict}')
 
-        self._factory_dict[target_num] = factory_list_dict[target_type](target_dict, self._ff_path)
+            target_type = target_dict.pop('target_type')
+            self._factory_dict[target_num] = factory_list_dict[target_type](target_dict, self._ff_path)
 
     
 
     def _initialize_background_df(self):
         """
         Initializing the dataframe to which we will convert the G4 data into. The 
-        goal is to make this dataframe as salting-like as possible, to  ease
+        goal is to make this dataframe as salting-like as possible, to ease
         readability AND to limit the amount of new software that needs to be written.
         """
 
@@ -136,7 +141,7 @@ class Background_Manager(Salting):
 
     def _read_root_file(self):
         """
-        Read in the root file containing backgrounds as a populate the backgroun dictionary
+        Read in the root file containing backgrounds to populate the background dictionary
         """
 
         if self._dataframe is None:

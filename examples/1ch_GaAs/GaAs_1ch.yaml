@@ -1,0 +1,96 @@
+
+filter_file: 1channel_GaAs.hdf5
+LEE_PDF_file: LEE_distributions.pkl
+
+# -------------------------------------------------
+# Noise Generation
+# -------------------------------------------------
+noise:
+    channel_00:
+        noise_tag: default
+    channel_01:
+        noise_tag: default
+    channel_02:
+        noise_tag: default
+# -------------------------------------------------
+# LEE Information 
+# -------------------------------------------------
+salting:
+
+    #singles LEE
+    singles_LEE_GaAs:
+        channel: channel_00
+        template_tag: single
+        collection_efficiency: [1.0]
+        pdf_tag: GaAs_single
+        pdf_bounds: [0.0,25]
+        dpdi_tag: default
+        dpdi_poles: 3
+        rate: 1
+
+    #shared LEE 
+    shared_LEE_GaAs:
+        channel: channel_00
+        template_tag: shared
+        collection_efficiency: [1.0]
+        pdf_tag: GaAs_shared
+        pdf_bounds: [0.0,50]
+        dpdi_tag: default
+        dpdi_poles: 3
+        rate: 2
+    
+    #singles LEE
+    singles_LEE_Si1:
+        channel: channel_01
+        template_tag: single
+        collection_efficiency: [1.0]
+        pdf_tag: Si_single
+        pdf_bounds: [0.0,25]
+        dpdi_tag: default
+        dpdi_poles: 3
+        rate: 1
+
+    #shared LEE 
+    shared_LEE_Si1:
+        channel: channel_01
+        template_tag: shared
+        collection_efficiency: [1.0]
+        pdf_tag: Si_shared
+        pdf_bounds: [0.0,50]
+        dpdi_tag: default
+        dpdi_poles: 3
+        rate: 2
+
+    #singles LEE
+    singles_LEE_Si2:
+        channel: channel_02
+        template_tag: single
+        collection_efficiency: [1.0]
+        pdf_tag: Si_single
+        pdf_bounds: [0.0,25]
+        dpdi_tag: default
+        dpdi_poles: 3
+        rate: 1
+
+    #shared LEE 
+    shared_LEE_Si2:
+        channel: channel_00
+        template_tag: shared
+        collection_efficiency: [1.0]
+        pdf_tag: Si_shared
+        pdf_bounds: [0.0,50]
+        dpdi_tag: default
+        dpdi_poles: 3
+        rate: 2  
+
+
+
+
+
+
+
+
+
+
+
+

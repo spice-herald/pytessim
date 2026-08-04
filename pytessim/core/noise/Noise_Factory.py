@@ -148,7 +148,21 @@ class Noise_Factory(FilterData):
             Ls = np.full_like(csd_interp, (0+0j))
 
             #Skip any frequencies that won't play nice with a Cholesky decomposition (any with zero as an eigenvalue)
-            zero_freqs = ( (0 < np.abs(freqs_interp)) & (np.abs(freqs_interp) < freqs_orig[1]) )  | ( (freqs_interp) > np.max(freqs_orig)) | ( (freqs_interp) < np.min(freqs_orig))
+            # frequencies between 0 and the fundmantal frequency of the original PSD
+            # frequencies larger/smaller than the max/min of the original psd
+            zero_freqs = ( (0 <= np.abs(freqs_interp)) & (np.abs(freqs_interp) < freqs_orig[1]) )  | ( (freqs_interp) > np.max(freqs_orig)) | ( (freqs_interp) < np.min(freqs_orig))
+            
+            # print('testing')
+            # for i in range(csd_interp.shape[2]):
+            #     if zero_freqs[i]:
+            #         continue
+            #     else:
+            #         try: 
+            #             np.linalg.cholesky(csd_interp[:,:,i])
+            #         except np.linalg.LinAlgError:
+            #             print(i)
+
+            #     # Ls[:,:,i] = np.linalg.cholesky(csd_interp[:,:,i])
 
             Ls[:,:,~zero_freqs] = (np.linalg.cholesky((csd_interp.transpose(2,0,1))[~zero_freqs])).transpose(1,2,0)
 

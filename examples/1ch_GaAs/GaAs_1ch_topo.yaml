@@ -1,0 +1,48 @@
+
+filter_file: /home/wmatava/pytessim_dev/testing_july_2026/1channel_GaAs.hdf5
+background_file: /home/wmatava/pytessim_dev/test/Copper_Co57_germanium_reduced.root
+
+topology:
+
+#8x GaAs target modules 
+    target1:
+        target_type: GaAs_1ch
+        G4ID: 17
+        target_channel:
+            channel_name: channel_00
+            template_tag: shared
+            dpdi_tag: default
+            dpdi_npoles : 3           
+            collection_efficiency : [.3]       
+        top_channel:
+            channel_name: channel_01
+            template_tag: shared
+            dpdi_tag: default  
+            dpdi_npoles : 3           
+            collection_efficiency : [.3]              
+        bottom_channel:
+            channel_name: channel_02
+            template_tag: shared
+            dpdi_tag: default  
+            dpdi_npoles : 3           
+            collection_efficiency : [.3]  
+    
+    target2:
+        target_type: PPD_1ch
+        G4ID: 18
+        channel:
+            channel_name: channel_01
+            template_tag: shared
+            dpdi_tag: default
+            dpdi_npoles : 3           
+            collection_efficiency : [.3]
+
+    target3:
+        target_type: PPD_1ch
+        G4ID: 19
+        channel:
+            channel_name: channel_02
+            template_tag: shared
+            dpdi_tag: default
+            dpdi_npoles : 3           
+            collection_efficiency : [.3]

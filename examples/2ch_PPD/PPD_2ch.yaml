@@ -1,0 +1,49 @@
+
+filter_file: 2channel_ppd.hdf5
+LEE_PDF_file: LEE_distributions.pkl
+
+# -------------------------------------------------
+# Noise Generation
+# -------------------------------------------------
+noise:
+    channel_00|channel_01:
+        noise_tag: default
+
+# -------------------------------------------------
+# LEE Information 
+# -------------------------------------------------
+salting:
+
+    #singles LEE
+    channel_00,channel_01:
+        template_tag: single
+        collection_efficiency: 1.0
+        pdf_tag: single
+        pdf_bounds: [0.0,25]
+        dpdi_tag: default
+        dpdi_poles: 3
+        rate: 1
+
+    #shared LEE 
+    channel_00|channel_01:
+        template_tag: shared
+        collection_efficiency: [1.0, 1.0]
+        pdf_tag: shared
+        pdf_bounds: [0.0,50]
+        dpdi_tag: default
+        dpdi_poles: 3
+        rate: 2
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+

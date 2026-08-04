@@ -1,0 +1,22 @@
+
+filter_file: /home/wmatava/pytessim_dev/testing_july_2026/1channel_ppd.hdf5
+background_file: /home/wmatava/pytessim_dev/test/Copper_Co57_germanium_reduced.root
+
+topology:
+
+# 8x GaAs target modules 
+    target1:
+        target_type: PPD_2lsch
+        G4ID: 17
+        left_channel:
+            channel_name: channel_00
+            template_tag: signal
+            dpdi_tag: default
+            dpdi_npoles : 3           
+            collection_efficiency : [.3]
+        right_channel:
+            channel_name: channel_01
+            template_tag: signal
+            dpdi_tag: default
+            dpdi_npoles : 3  
+            collection_efficiency : [.3]
