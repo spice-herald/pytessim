@@ -45,7 +45,7 @@ N_CHANNELS = 24
 
 
 def load_scaled_templates(filter_data, channels, template_tag, dpdi_tag,
-                          dpdi_poles, uniform_channel=None):
+                          dpdi_poles, fs, uniform_channel=None):
     """
     Load templates from the filter file and pre-scale them to
     current-per-eV units for fast pulse injection.
@@ -53,8 +53,10 @@ def load_scaled_templates(filter_data, channels, template_tag, dpdi_tag,
     Returns
     -------
     templates : np.ndarray, shape (n_channels, n_template_samples)
+    pretrigger_samples : int, number of baseline samples before pulse onset
     """
     templates = []
+    pretrigger_samples = 0
 
     if uniform_channel is not None:
         src_channels = [uniform_channel]
@@ -65,7 +67,7 @@ def load_scaled_templates(filter_data, channels, template_tag, dpdi_tag,
         tag = template_tag if template_tag is not None else chan
         dt_tag = dpdi_tag if dpdi_tag is not None else chan
 
-        template, time_array, _ = filter_data.get_template(
+        template, time_array, metadata = filter_data.get_template(
             chan, tag=tag, return_metadata=True
         )
         if template.ndim > 1:
@@ -73,22 +75,25 @@ def load_scaled_templates(filter_data, channels, template_tag, dpdi_tag,
             if template.ndim > 1:
                 template = template[0]
 
+        pretrigger_msec = metadata.get('pretrigger_length_msec', 0)
+        pretrigger_samples = int(pretrigger_msec * 1e-3 * fs)
+
         dpdi, _ = filter_data.get_dpdi(channel=chan, poles=dpdi_poles, tag=dt_tag)
         energy_norm = qp.get_energy_normalization(
             time_array, template, dpdi=dpdi, lgc_ev=True
         )
-        templates.append(template * energy_norm)
+        templates.append(template / energy_norm)
 
     templates = np.array(templates)
 
     if uniform_channel is not None:
         templates = np.tile(templates, (N_CHANNELS, 1))
 
-    return templates
+    return templates, pretrigger_samples
 
 
 def inject_pulses(traces, hest_event_grp, scaled_templates, trigger_offset,
-                  fs, n_sensors):
+                  pretrigger_samples, fs, n_sensors):
     """
     Read per-quanta arrival times and energies from a HeST event group
     and add scaled template pulses to the trace array.
@@ -116,7 +121,7 @@ def inject_pulses(traces, hest_event_grp, scaled_templates, trigger_offset,
             tlen = len(template)
 
             for q in range(len(times_us)):
-                idx = int(fs * times_us[q] * 1e-6) + trigger_offset
+                idx = int(fs * times_us[q] * 1e-6) + trigger_offset - pretrigger_samples
                 end_idx = idx + tlen
 
                 if idx >= n_samples:
@@ -191,6 +196,9 @@ def main():
     parser.add_argument('--dpdi-poles', '--dpdi_poles',
                         dest='dpdi_poles', type=int, default=1,
                         help='Number of poles for dP/dI lookup (default: 1)')
+    parser.add_argument('--max-events', '--max_events',
+                        dest='max_events', type=int, default=None,
+                        help='Maximum number of events to process (default: all)')
     parser.add_argument('--enable-LEE', '--enable_LEE',
                         dest='enable_LEE', action='store_true',
                         help='Inject low-energy excess pulses after trace generation')
@@ -229,9 +237,11 @@ def main():
     # --- Open HeST H5 file ---
     print(f'Opening HeST file: {args.hest_file}')
     hest_h5 = h5py.File(args.hest_file, 'r')
-    n_events = hest_h5.attrs['n_events']
-    n_sensors = hest_h5.attrs['n_sensors']
-    print(f'  {n_events} events, {n_sensors} sensors')
+    n_events = int(hest_h5.attrs['n_events'])
+    n_sensors = int(hest_h5.attrs['n_sensors'])
+    if args.max_events is not None:
+        n_events = min(n_events, args.max_events)
+    print(f'  {n_events} events to process, {n_sensors} sensors')
 
     if n_sensors > N_CHANNELS:
         print(f'  WARNING: HeST has {n_sensors} sensors but only first '
@@ -242,11 +252,12 @@ def main():
     filter_data = FilterData()
     filter_data.load_hdf5(args.filter_file)
 
-    scaled_templates = load_scaled_templates(
+    scaled_templates, pretrigger_samples = load_scaled_templates(
         filter_data, channel_names, args.template_tag, args.dpdi_tag,
-        args.dpdi_poles, uniform_channel=args.uniform_channel
+        args.dpdi_poles, args.fs, uniform_channel=args.uniform_channel
     )
     print(f'  Template length: {scaled_templates.shape[1]} samples')
+    print(f'  Pretrigger: {pretrigger_samples} samples ({pretrigger_samples/args.fs*1000:.1f} ms)')
 
     # --- Initialize noise ---
     enable_noise = not args.no_noise
@@ -313,7 +324,7 @@ def main():
         if os.path.getsize(current_filename) / 1e9 > args.filesize_lim_GB:
             writer._close_file()
             file_metadata['timestamp'] = start_epoch + time_counter
-            file_metadata['dump_number'] += 1
+            file_metadata['dump_num'] += 1
             writer.set_metadata(
                 file_metadata=file_metadata, adc_config=adc_metadata,
                 detector_config=det_metadata
@@ -337,7 +348,7 @@ def main():
         if evt_key in events_grp:
             inject_pulses(
                 traces, events_grp[evt_key], scaled_templates,
-                trigger_offset, args.fs, n_sensors
+                trigger_offset, pretrigger_samples, args.fs, n_sensors
             )
 
         # Convert to ADC and write
