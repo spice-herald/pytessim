@@ -41,11 +41,10 @@ from pytessim.utils import gen_metadata, time_to_string, string_to_time
 
 
 CHANNEL_KEYS = ['singlet', 'triplet', 'ir', 'qp']
-N_CHANNELS = 24
 
 
 def load_scaled_templates(filter_data, channels, template_tag, dpdi_tag,
-                          dpdi_poles, fs, uniform_channel=None):
+                          dpdi_poles, fs, n_channels, uniform_channel=None):
     """
     Load templates from the filter file and pre-scale them to
     current-per-eV units for fast pulse injection.
@@ -87,7 +86,7 @@ def load_scaled_templates(filter_data, channels, template_tag, dpdi_tag,
     templates = np.array(templates)
 
     if uniform_channel is not None:
-        templates = np.tile(templates, (N_CHANNELS, 1))
+        templates = np.tile(templates, (n_channels, 1))
 
     return templates, pretrigger_samples
 
@@ -110,7 +109,7 @@ def inject_pulses(traces, hest_event_grp, scaled_templates, trigger_offset,
             s_key = str(sensor_idx)
             if s_key not in ch_grp:
                 continue
-            if sensor_idx >= N_CHANNELS:
+            if sensor_idx >= traces.shape[0]:
                 continue
 
             s_grp = ch_grp[s_key]
@@ -189,7 +188,7 @@ def main():
                         help='PSD/CSD tag in filter file (default: channel name)')
     parser.add_argument('--uniform-channel', '--uniform_channel',
                         dest='uniform_channel', type=str, default=None,
-                        help='Use this single channel template+PSD for all 24 sensors')
+                        help='Use this single channel template+PSD for all sensors')
     parser.add_argument('--dpdi-tag', '--dpdi_tag',
                         dest='dpdi_tag', type=str, default=None,
                         help='dP/dI tag in filter file (default: channel name)')
@@ -223,7 +222,8 @@ def main():
     n_samples = int(args.fs * args.event_length_sec)
     trigger_offset = int(args.fs * args.trigger_offset_msec * 1e-3)
 
-    channel_names = [f'channel_{i:02d}' for i in range(N_CHANNELS)]
+    # n_channels derived from HeST H5 after opening (see below)
+    # channel_names set after n_channels is known
 
     date_time_string = time_to_string(dt.datetime.now())
     save_path = args.save_path.rstrip('/') + '/continuous_I9_' + date_time_string
@@ -238,14 +238,12 @@ def main():
     print(f'Opening HeST file: {args.hest_file}')
     hest_h5 = h5py.File(args.hest_file, 'r')
     n_events = int(hest_h5.attrs['n_events'])
-    n_sensors = int(hest_h5.attrs['n_sensors'])
+    n_channels = int(hest_h5.attrs['n_sensors'])
     if args.max_events is not None:
         n_events = min(n_events, args.max_events)
-    print(f'  {n_events} events to process, {n_sensors} sensors')
+    print(f'  {n_events} events to process, {n_channels} sensors/channels')
 
-    if n_sensors > N_CHANNELS:
-        print(f'  WARNING: HeST has {n_sensors} sensors but only first '
-              f'{N_CHANNELS} will be used')
+    channel_names = [f'channel_{i:02d}' for i in range(n_channels)]
 
     # --- Load templates ---
     print('Loading templates and computing energy normalization...')
@@ -254,7 +252,7 @@ def main():
 
     scaled_templates, pretrigger_samples = load_scaled_templates(
         filter_data, channel_names, args.template_tag, args.dpdi_tag,
-        args.dpdi_poles, args.fs, uniform_channel=args.uniform_channel
+        args.dpdi_poles, args.fs, n_channels, uniform_channel=args.uniform_channel
     )
     print(f'  Template length: {scaled_templates.shape[1]} samples')
     print(f'  Pretrigger: {pretrigger_samples} samples ({pretrigger_samples/args.fs*1000:.1f} ms)')
@@ -274,7 +272,7 @@ def main():
         else:
             for chan in channel_names:
                 noise_factory.initialize_factory(chan)
-            print(f'  Initialized {N_CHANNELS} independent noise channels')
+            print(f'  Initialized {n_channels} independent noise channels')
 
     # --- Set up file writing ---
     start_time = string_to_time(date_time_string) + dt.timedelta(seconds=1)
@@ -305,7 +303,7 @@ def main():
                 'I9_' + series_string, data_path=save_path
             )
             file_metadata, adc_metadata, det_metadata = gen_metadata(
-                N_CHANNELS, comment=args.comment, fs=args.fs,
+                n_channels, comment=args.comment, fs=args.fs,
                 sec_per_event=args.event_length_sec,
                 sec_per_series=args.series_length_sec,
                 dataset_start_epoch=start_epoch,
@@ -332,12 +330,12 @@ def main():
             writer._open_file(prefix='cont')
 
         # Build trace
-        traces = np.zeros((N_CHANNELS, n_samples))
+        traces = np.zeros((n_channels, n_samples))
 
         # Add noise
         if enable_noise:
             if args.uniform_channel is not None:
-                for i in range(N_CHANNELS):
+                for i in range(n_channels):
                     traces[i] = noise_factory.sample_noise(args.uniform_channel)
             else:
                 for i, chan in enumerate(channel_names):
@@ -348,7 +346,7 @@ def main():
         if evt_key in events_grp:
             inject_pulses(
                 traces, events_grp[evt_key], scaled_templates,
-                trigger_offset, pretrigger_samples, args.fs, n_sensors
+                trigger_offset, pretrigger_samples, args.fs, n_channels
             )
 
         # Convert to ADC and write
