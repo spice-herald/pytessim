@@ -1,17 +1,17 @@
 """
-hest_trace_generation.py — Convert HeST simulate_spectrum.py H5 output into
+herm_trace_generation.py — Convert HeRM simulate_spectrum.py H5 output into
 realistic 24-channel TES waveform traces (noise + signal pulses) in pytesdaq
 HDF5 format.
 
 Usage:
-    python hest_trace_generation.py \
-        --hest-file sims/Spectrum_Flat_ER_...h5 \
+    python herm_trace_generation.py \
+        --herm-file sims/Spectrum_Flat_ER_...h5 \
         --filter-file herald_filter.hdf5 \
         --save-path ./traces_out/ \
         --event-length-sec 10 \
         --uniform-channel channel_00
 
-The HeST H5 file must have been produced with --save_raw, containing:
+The HeRM H5 file must have been produced with --save_raw, containing:
     events/{i}/{channel}/{sensor}/arrival_times  (µs)
     events/{i}/{channel}/{sensor}/energies       (eV)
 where channel is one of: singlet, triplet, ir, qp
@@ -91,18 +91,18 @@ def load_scaled_templates(filter_data, channels, template_tag, dpdi_tag,
     return templates, pretrigger_samples
 
 
-def inject_pulses(traces, hest_event_grp, scaled_templates, trigger_offset,
+def inject_pulses(traces, herm_event_grp, scaled_templates, trigger_offset,
                   pretrigger_samples, fs, n_sensors):
     """
-    Read per-quanta arrival times and energies from a HeST event group
+    Read per-quanta arrival times and energies from a HeRM event group
     and add scaled template pulses to the trace array.
     """
     n_samples = traces.shape[1]
 
     for ch_key in CHANNEL_KEYS:
-        if ch_key not in hest_event_grp:
+        if ch_key not in herm_event_grp:
             continue
-        ch_grp = hest_event_grp[ch_key]
+        ch_grp = herm_event_grp[ch_key]
         weight = ch_grp.attrs.get('weight', 1.0)
 
         for sensor_idx in range(n_sensors):
@@ -148,11 +148,11 @@ def traces_to_adc(traces):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate TES traces from HeST simulation H5 output')
+        description='Generate TES traces from HeRM simulation H5 output')
 
-    parser.add_argument('--hest-file', '--hest_file',
-                        dest='hest_file', type=str, required=True,
-                        help='Path to HeST H5 file (from simulate_spectrum.py --save_raw)')
+    parser.add_argument('--herm-file', '--herm_file',
+                        dest='herm_file', type=str, required=True,
+                        help='Path to HeRM H5 file (from simulate_spectrum.py --save_raw)')
     parser.add_argument('--filter-file', '--filter_file',
                         dest='filter_file', type=str, required=True,
                         help='Path to filter HDF5 file with templates and PSDs')
@@ -169,7 +169,7 @@ def main():
                         dest='fs', type=float, default=1.25e6,
                         help='Sampling frequency in Hz (default: 1.25e6)')
     parser.add_argument('--comment', '-c',
-                        dest='comment', type=str, default='HeST trace generation',
+                        dest='comment', type=str, default='HeRM trace generation',
                         help='Metadata comment string')
     parser.add_argument('--filesize-lim-GB', '--filesize_lim_GB',
                         dest='filesize_lim_GB', type=float, default=1,
@@ -179,7 +179,7 @@ def main():
                         help='Skip noise generation (signal-only traces)')
     parser.add_argument('--trigger-offset-msec', '--trigger_offset_msec',
                         dest='trigger_offset_msec', type=float, default=5000,
-                        help='Time in trace (ms) where HeST t=0 maps to (default: 5000)')
+                        help='Time in trace (ms) where HeRM t=0 maps to (default: 5000)')
     parser.add_argument('--template-tag', '--template_tag',
                         dest='template_tag', type=str, default=None,
                         help='Template tag in filter file (default: channel name)')
@@ -222,7 +222,7 @@ def main():
     n_samples = int(args.fs * args.event_length_sec)
     trigger_offset = int(args.fs * args.trigger_offset_msec * 1e-3)
 
-    # n_channels derived from HeST H5 after opening (see below)
+    # n_channels derived from HeRM H5 after opening (see below)
     # channel_names set after n_channels is known
 
     date_time_string = time_to_string(dt.datetime.now())
@@ -234,11 +234,11 @@ def main():
             f'series length ({args.series_length_sec}s)')
     n_events_per_series = int(args.series_length_sec / args.event_length_sec)
 
-    # --- Open HeST H5 file ---
-    print(f'Opening HeST file: {args.hest_file}')
-    hest_h5 = h5py.File(args.hest_file, 'r')
-    n_events = int(hest_h5.attrs['n_events'])
-    n_channels = int(hest_h5.attrs['n_sensors'])
+    # --- Open HeRM H5 file ---
+    print(f'Opening HeRM file: {args.herm_file}')
+    herm_h5 = h5py.File(args.herm_file, 'r')
+    n_events = int(herm_h5.attrs['n_events'])
+    n_channels = int(herm_h5.attrs['n_sensors'])
     if args.max_events is not None:
         n_events = min(n_events, args.max_events)
     print(f'  {n_events} events to process, {n_channels} sensors/channels')
@@ -288,7 +288,7 @@ def main():
 
     writer = H5Writer()
 
-    events_grp = hest_h5['events']
+    events_grp = herm_h5['events']
 
     for event_idx in tqdm(range(n_events)):
         # Start a new series if needed
@@ -341,7 +341,7 @@ def main():
                 for i, chan in enumerate(channel_names):
                     traces[i] = noise_factory.sample_noise(chan)
 
-        # Add signal pulses from HeST
+        # Add signal pulses from HeRM
         evt_key = str(event_idx)
         if evt_key in events_grp:
             inject_pulses(
@@ -356,7 +356,7 @@ def main():
 
     # Close final file
     writer._close_file()
-    hest_h5.close()
+    herm_h5.close()
 
     total_time_sec = n_events * args.event_length_sec
     channel_list = channel_names
