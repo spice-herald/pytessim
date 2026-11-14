@@ -13,8 +13,15 @@ from detprocess.utils import utils
 
 
 __all__ = [
-    'YamlTopConfig'
+    'YamlTopConfig',
+    'load_yaml_config',
 ]
+
+
+def load_yaml_config(yaml_file):
+    """Load a YAML file, rejecting duplicate keys at every mapping level."""
+    with open(yaml_file, 'r', encoding='utf-8') as stream:
+        return yaml.load(stream, Loader=_UniqueKeyLoader)
 
 class YamlTopConfig:
     """
