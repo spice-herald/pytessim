@@ -167,8 +167,14 @@ class EventLoader:
         order = np.argsort(result['onset_sample'], kind='stable')
         return {name: values[order] for name, values in result.items()}
 
-    def _add_lee_markers(self, ax, event_idx, channel_idx, max_markers=100):
-        """Draw exact LEE onset times, independently of downsampling/HeRM offsets."""
+    def _add_lee_markers(self, ax, event_idx, channel_idx, max_markers=2000):
+        """Draw exact LEE onset times, independently of downsampling/HeRM offsets.
+
+        Markers span the full event window. If the pulse count exceeds
+        max_markers, a subset spread uniformly in time is drawn (onsets are
+        sorted) so the overlay stays representative of the whole window; the
+        legend always quotes the true pulse count and energy.
+        """
         if self.lee_data is None or not self.show_lee:
             return None
         truth = self.get_lee_truth(event_idx, channel_idx)
@@ -177,16 +183,17 @@ class EventLoader:
             return truth
         times_ms = truth['onset_sample'] / self.fs * 1e3
         if n_pulses > max_markers:
+            draw_idx = np.unique(
+                np.linspace(0, n_pulses - 1, max_markers).astype(int))
+            times_ms = times_ms[draw_idx]
             print(f'LEE channel {channel_idx}: drawing {max_markers} of '
-                  f'{n_pulses} markers; pulse count includes all pulses')
-        for pulse_idx, time_ms in enumerate(times_ms[:max_markers]):
-            ax.axvline(
-                time_ms, color=LEE_MARKER_COLOR, linestyle=LEE_MARKER_STYLE,
-                alpha=0.8, lw=1.2,
-                label=(f'LEE ({n_pulses} pulses, '
-                       f'{np.sum(truth["energy_eV"]):.3g} eV)')
-                if pulse_idx == 0 else None
-            )
+                  f'{n_pulses} markers, spread uniformly over the event '
+                  f'window; legend counts include all pulses')
+        ax.vlines(times_ms, 0, 1, transform=ax.get_xaxis_transform(),
+                  color=LEE_MARKER_COLOR, linestyle=LEE_MARKER_STYLE,
+                  alpha=0.8, lw=1.2,
+                  label=(f'LEE ({n_pulses} pulses, '
+                         f'{np.sum(truth["energy_eV"]):.3g} eV)'))
         return truth
 
     def _print_lee_truth(self, event_idx, channel_idx, max_rows=50):
@@ -288,9 +295,6 @@ class EventLoader:
             ax = axes[ch // ncols, ch % ncols]
             idx, vals = self.downsample(traces[ch], factor=ds_factor)
             ax.plot(idx / self.fs * 1e3, vals * 1e6, linewidth=2, color='C0')
-            lee_truth = self._add_lee_markers(ax, event_idx, ch)
-            if lee_truth is not None and len(lee_truth['onset_sample']):
-                ax.legend(fontsize=7, loc='upper right')
             ax.set_title(f'ch {ch:02d}', fontsize=8)
             ax.tick_params(labelsize=7)
             if xlim is not None:

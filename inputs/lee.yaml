@@ -3,8 +3,8 @@
 # These are example values; choose the rate and spectrum for your application.
 lee:
   enabled: true
-  rate_hz: 100.0        # events/second/channel
+  rate_hz: 1.0        # events/second/channel
   energy_min_ev: 1.0    # lower energy bound in eV
   energy_max_ev: 100.0  # upper energy bound in eV; must be greater than the minimum
-  power_law_index: 2.0  # dN/dE ∝ E^(-power_law_index)
+  power_law_index: 4.0  # dN/dE ∝ E^(-power_law_index)
   seed: 42             # reproducible LEE stream only; does not seed noise
